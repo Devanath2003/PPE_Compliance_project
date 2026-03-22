@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_title }}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <h1>PPE Compliance Monitor</h1>
+    </header>
+
+    <main class="workspace">
+      <section class="settings-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Control Deck</p>
+            <h2>Project Configuration</h2>
+          </div>
+          <div class="status-pill" id="model-status">Loading model metadata...</div>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Model Weights</span>
+            <select id="model-select"></select>
+          </label>
+
+          <label class="field">
+            <span>Confidence Threshold</span>
+            <input id="confidence-threshold" type="range" min="0.1" max="0.9" step="0.01">
+            <strong id="confidence-value"></strong>
+            <small class="field-note">Higher means only stronger detections are shown.</small>
+          </label>
+
+          <label class="field">
+            <span>Compliance Threshold</span>
+            <input id="compliance-threshold" type="range" min="0.3" max="0.95" step="0.01">
+            <strong id="compliance-value"></strong>
+            <small class="field-note">Higher makes the system stricter before calling someone compliant.</small>
+          </label>
+
+          <label class="field">
+            <span>Temporal Window</span>
+            <input id="temporal-window" type="range" min="5" max="180" step="1">
+            <strong id="temporal-value"></strong>
+            <small class="field-note">Measured in frames, not seconds. More frames smooth the result more, but react slower to change.</small>
+          </label>
+        </div>
+
+        <div class="ppe-selector">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Site Rules</p>
+              <h3>Required PPE Classes</h3>
+            </div>
+            <button type="button" class="ghost-button" id="reset-ppe">Reset Defaults</button>
+          </div>
+          <div id="ppe-chips" class="chip-row"></div>
+        </div>
+      </section>
+
+      <section class="tab-card">
+        <div class="tab-header">
+          <button type="button" class="tab-button active" data-tab="image">Image Analysis</button>
+          <button type="button" class="tab-button" data-tab="video">Video Analysis</button>
+          <button type="button" class="tab-button" data-tab="camera">Camera Snapshot</button>
+        </div>
+
+        <div class="tab-panel active" data-panel="image">
+          <form id="image-form" class="mode-panel">
+            <div class="upload-box">
+              <h3>Analyze an Image</h3>
+              <p>Upload a frame or site photo to get annotated PPE detections and per-worker compliance results.</p>
+              <input id="image-file" name="file" type="file" accept="image/*" required>
+              <button type="submit" class="primary-button">Run Image Analysis</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="tab-panel" data-panel="video">
+          <form id="video-form" class="mode-panel">
+            <div class="upload-box">
+              <h3>Analyze a Video</h3>
+              <p>Upload a recorded clip to generate an annotated output video, timeline samples, and violation events.</p>
+              <input id="video-file" name="file" type="file" accept="video/*" required>
+              <button type="submit" class="primary-button">Process Video</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="tab-panel" data-panel="camera">
+          <div class="mode-panel camera-panel">
+            <div class="camera-box">
+              <h3>Camera Snapshot</h3>
+              <p>Use your browser camera to capture a frame and run the same PPE pipeline without leaving the page.</p>
+              <div class="camera-controls">
+                <button type="button" class="secondary-button" id="start-camera">Start Camera</button>
+                <button type="button" class="secondary-button" id="stop-camera">Stop Camera</button>
+                <button type="button" class="primary-button" id="capture-camera">Capture and Analyze</button>
+              </div>
+            </div>
+            <div class="camera-preview">
+              <video id="camera-stream" autoplay playsinline muted></video>
+              <canvas id="camera-canvas" hidden></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="results-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Output</p>
+            <h2>Analysis Results</h2>
+          </div>
+          <div class="status-pill muted" id="run-status">Waiting for input</div>
+        </div>
+
+        <div id="result-empty" class="empty-state">
+          Run an image, video, or camera snapshot to see detections, compliance summaries, and temporal results.
+        </div>
+
+        <div id="result-content" class="result-content hidden">
+          <div class="metrics-grid" id="metrics-grid"></div>
+
+          <div class="media-card">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Annotated Output</p>
+                <h3>Visual Result</h3>
+              </div>
+              <div class="download-links" id="download-links"></div>
+            </div>
+            <div id="media-host" class="media-host"></div>
+          </div>
+
+          <div class="dual-grid">
+            <div class="panel-card">
+              <div class="section-heading compact">
+                <div>
+                  <p class="eyebrow">Worker Breakdown</p>
+                  <h3>Per-Person Results</h3>
+                </div>
+              </div>
+              <div id="people-table"></div>
+            </div>
+
+            <div class="panel-card">
+              <div class="section-heading compact">
+                <div>
+                  <p class="eyebrow">Temporal Summary</p>
+                  <h3>Timeline and Events</h3>
+                </div>
+              </div>
+              <div id="timeline-card" class="timeline-card"></div>
+              <div id="events-table"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
