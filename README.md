@@ -1,4 +1,4 @@
-# Anakha 2.0 PPE Compliance Monitor
+# PPE Compliance Monitor
 
 This project turns your trained `best.pt` model into a full local product: a FastAPI web app with image analysis, video analysis, camera snapshot support, annotated outputs, and STCA-inspired temporal reasoning.
 
