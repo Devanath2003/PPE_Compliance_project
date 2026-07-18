@@ -1,67 +1,69 @@
 # PPE Compliance Monitor
 
-This project turns your trained `best.pt` model into a full local product: a FastAPI web app with image analysis, video analysis, camera snapshot support, annotated outputs, and STCA-inspired temporal reasoning.
+A local web app that detects Personal Protective Equipment (PPE) usage from images, videos, or a browser camera snapshot, and scores compliance over time — not just per frame.
 
-## What it implements
+## Tech Stack
 
-- YOLOv11 inference using the trained project weights in this folder
-- STCA-style temporal compliance scoring inspired by the paper
-  - TEMF-style temporal entropy tracking
-  - ACSF-style adaptive compliance scoring
-- Generalized PPE logic for the model's 7 classes
-  - `Person`
-  - `Glasses`
-  - `Gloves`
-  - `Helmet`
-  - `Mask`
-  - `Vest`
-  - `Shoes`
-- A local web UI for image, video, and browser camera snapshot analysis
-- Output artifacts saved under `runs/`
-  - annotated images or videos
-  - JSON reports
-  - CSV event logs for video runs
+- **Backend:** FastAPI (Python) + Uvicorn
+- **Frontend:** Jinja2 templates, vanilla HTML/CSS/JS
+- **Detection model:** YOLO (Ultralytics), custom-trained weights (`best.pt`)
+- **CV/Numerics:** OpenCV, NumPy, PyTorch (CUDA if available, else CPU)
 
-## Project structure
+## Detected Classes
 
-- `app.py`: FastAPI entrypoint
-- `ppe_app/config.py`: paths and runtime defaults
-- `ppe_app/temporal.py`: temporal scoring utilities
-- `ppe_app/engine.py`: model loading, frame analysis, rendering, video processing
-- `templates/index.html`: main UI
-- `static/styles.css`: dashboard styling
-- `static/app.js`: frontend logic
-- `stca.py`: original/reference STCA module kept for context
-- `inf.ipynb`: original prototype notebook kept for context
+`Person`, `Glasses`, `Gloves`, `Helmet`, `Mask`, `Vest`, `Shoes`
 
-## How to run
+## Core Algorithms
 
-1. Open a terminal in this project folder.
-2. Start the app:
+- **YOLO object detection** — locates people and PPE items in each frame.
+- **Custom IOU + appearance-based tracker** (`SimpleBoxTracker`) — matches detections across frames using box IOU, position/size prediction, and an appearance feature score, so the same worker/item is tracked instead of re-detected from scratch each frame.
+- **Worker identity resolution** (`WorkerIdentityResolver`) — re-links a worker's identity across short gaps (occlusion, missed frames) using track history.
+- **Spatial PPE-to-person assignment** (`spatial.py`) — assigns each detected PPE item to the correct person using body-region priors (e.g. helmet near the top, shoes near the bottom) combined with overlap and horizontal-distance scoring.
+- **Temporal compliance scoring** (`temporal.py`), inspired by an STCA (Spatio-Temporal Compliance Analysis) approach:
+  - **Adaptive Compliance Scoring (ACSF-style):** exponentially decayed weighted average over a sliding window, so recent frames matter more than older ones.
+  - **Temporal Entropy (TEMF-style):** measures stability/uncertainty of compliance over the tracked window to smooth out flickering detections.
+  - Produces a trend label (`improving` / `declining` / `stable` / `warming-up`) and a final compliant/violation/at-risk status per worker.
+- **Presence smoothing** (`PPEPresenceSmoother`) — persists an item's "present" state for a few frames to avoid flicker from momentary missed detections.
+
+## Features
+
+- Image, video, and browser-camera analysis from a single local UI
+- Configurable required PPE set, confidence threshold, compliance threshold, and temporal window
+- Annotated output images/videos saved to `runs/`
+- JSON compliance reports and CSV event logs (per-worker violation streaks) for video runs
+
+## Project Structure
+
+```
+app.py                  FastAPI entrypoint and API routes
+ppe_app/config.py       Paths, defaults, app constants
+ppe_app/tracking.py     YOLO wrapper, box tracker, worker identity resolver
+ppe_app/spatial.py      PPE-to-person spatial assignment logic
+ppe_app/temporal.py     Temporal compliance scoring (STCA-inspired)
+ppe_app/engine.py       Orchestrates detection -> tracking -> scoring -> rendering
+ppe_app/rendering.py    Frame/video annotation
+ppe_app/reporting.py    Report and CSV event generation
+ppe_app/helpers.py      Shared geometry/feature utilities
+templates/index.html    Web UI
+static/                 CSS and frontend JS
+```
+
+## Setup & Run
 
 ```bash
+pip install -r requirements.txt
 python app.py
 ```
 
-3. Open:
+Then open:
 
-```text
+```
 http://127.0.0.1:8000
 ```
 
+The app uses `best.pt` by default if present in the project root; any other `.pt` file placed there will also show up as a selectable model.
+
 ## Notes
 
-- The app defaults to `best.pt` if it exists.
-- The paper focused on helmet and vest, but the UI lets you choose the required PPE set to match your site rules.
-- `Shoes` is available in the UI but is not forced by default because site policy can differ.
-- Annotated video encoding depends on codecs available through the local OpenCV build. If the browser does not preview the generated video, use the download links from the results panel.
-
-## Reference basis
-
-The implementation was built from:
-
-- `Advancing_Industrial_Safety_A_Spatio-Temporal_Framework_for_PPE_Detection_Using_YOLOv11.pdf`
-- `best.pt`
-- `stca.py`
-- `inf.ipynb`
-
+- `Shoes` is detected but not required by default in compliance checks, since site policy varies.
+- If a browser can't preview a generated annotated video, use the download link in the results panel (depends on codecs available in your local OpenCV build).
